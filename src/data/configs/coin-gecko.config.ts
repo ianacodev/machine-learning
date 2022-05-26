@@ -1,5 +1,5 @@
 // models
-import { cryptocurrencies } from '../../config/cryptocurrencies.config.js';
+import { cryptocurrencies } from './cryptocurrencies.config.js';
 
 const apiBaseSettings = {
   tickers: false,

@@ -10,3 +10,16 @@ export interface CondensedMarketData {
 export enum DataPlatforms {
   CoinGecko = 'CoinGecko',
 }
+
+export enum CryptoCurrenciesCoins {
+  Cardano = 'cardano',
+}
+
+export interface CryptoCurrency {
+  id: string;
+  symbol: string;
+}
+
+export interface CryptoCurrencies {
+  [id: string]: CryptoCurrency;
+}

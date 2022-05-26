@@ -1,82 +1,144 @@
 // imports
 import * as Brain from 'brain.js';
 import { Observable } from 'rxjs';
-import { bufferCount, tap, take, map } from 'rxjs/operators';
+import { map, filter } from 'rxjs/operators';
 // services
 import { DataBrokerService } from './data/services/data-broker.service.js';
 // models
 import {
+  CryptoCurrenciesCoins,
   DataPlatforms,
   CondensedMarketData,
 } from './data/models/data.model.js';
 // configs
-import { cryptocurrencies } from './config/cryptocurrencies.config.js';
+import { cryptocurrencies } from './data/configs/cryptocurrencies.config.js';
+
+export interface Tracking {
+  runCount: number;
+  currentPrice: number;
+  previousPrice: number;
+  predictedPrice: number;
+  coinCount: number;
+  loseCount: number;
+  gainCount: number;
+  initPosition: boolean;
+}
 
 class Main {
-  readonly DEFAULT_TRAINING_INSTANCE_COUNT = 10;
+  readonly PATTERN_LENGTH = 35;
+  readonly INVESTMENT_AMOUNT_USD = 100;
+  pattern: number[] = [];
   network: any;
+  tracking!: Tracking;
   dataService: any;
-  data$: Observable<CondensedMarketData>;
+  data$!: Observable<CondensedMarketData>;
 
   constructor() {
+    this.initTracking();
+    this.initData();
+    this.startNetworkProcessing();
+  }
+
+  /**
+   * init tracking
+   */
+  initTracking() {
+    this.tracking = {
+      runCount: 0,
+      currentPrice: 0,
+      previousPrice: 0,
+      predictedPrice: 0,
+      coinCount: 0,
+      loseCount: 0,
+      gainCount: 0,
+      initPosition: true,
+    };
+  }
+
+  /**
+   * init data
+   */
+  initData() {
     this.dataService = DataBrokerService.getService(DataPlatforms.CoinGecko);
     this.data$ = this.dataService.pollCondensedMarketData(
-      cryptocurrencies['CARDANO'],
+      cryptocurrencies[CryptoCurrenciesCoins.Cardano],
     );
-    this.dataService.pollCondensedMarketData(cryptocurrencies['CARDANO']);
-    this.initNetwork();
   }
 
   /**
-   * init network
+   * start network processing
    */
-  initNetwork() {
-    this.network = new Brain.recurrent.LSTM();
-    this.initNetworkTraining();
+  startNetworkProcessing() {
+    this.network = new Brain.recurrent.LSTMTimeStep();
+    this.runNetworkProcess();
   }
 
   /**
-   * init network training
+   * run network process
    */
-  initNetworkTraining(
-    instanceCount: number = this.DEFAULT_TRAINING_INSTANCE_COUNT,
-  ) {
-    console.log('--[TRAINING] begin-----------');
-    let count = 0;
+  runNetworkProcess() {
+    console.log('--[Network Process] begin-----------');
     this.data$
       .pipe(
-        tap((data) =>
-          console.log(`[#${++count}] [train price]: ${data.current_price}`),
-        ),
-        bufferCount(instanceCount),
-        map((dataSet) =>
-          dataSet.map((data, index) => {
-            const input = dataSet[index - 1]?.current_price;
-            const output = data.current_price;
-            return { input, output };
-          }),
-        ),
-        take(1),
+        map((data) => {
+          const { current_price: currentPrice } = data;
+          this.tracking.currentPrice = currentPrice;
+          if (this.tracking.initPosition) {
+            this.tracking.coinCount = this.INVESTMENT_AMOUNT_USD / currentPrice;
+            this.tracking.initPosition = false;
+            console.log(
+              `[position]: (amount) ${this.INVESTMENT_AMOUNT_USD} USD (coins) ${this.tracking.coinCount}`,
+            );
+          }
+          this.pattern.push(currentPrice);
+          console.log(
+            `(${++this.tracking.runCount})[train price]: ${
+              this.tracking.currentPrice
+            }`,
+          );
+        }),
+        filter(() => this.pattern.length == this.PATTERN_LENGTH),
       )
-      .subscribe((trainingData) => {
+      .subscribe(() => {
         const trainingConfig = {
-          iterations: 150,
-          log: (details: any) => console.log(details),
+          iterations: 4000,
+          errorThresh: 0.0005,
         };
-        trainingData.shift();
-        this.network.train(trainingData, trainingConfig);
-        console.log('--[TRAINING] complete-----------');
-        this.startNetworkRun();
+        this.network.train([this.pattern], trainingConfig);
+        const output = this.network.run(this.pattern);
+        this.updateTracking(output);
+        this.pattern.shift();
       });
   }
 
-  startNetworkRun(): any {
-    console.log('--[Network Run] begin-----------');
-    this.data$.subscribe((data) => {
-      const { current_price } = data;
-      const output = this.network.run(current_price);
-      console.log(`[input]: ${current_price} [output]: ${output}`);
-    });
+  /**
+   * update tracking
+   * @param output
+   */
+  updateTracking(output: number) {
+    const diff = this.tracking.currentPrice - this.tracking.predictedPrice;
+    console.log('--------------------------------');
+    console.log(`[predict price]: ${this.tracking.predictedPrice}`);
+    console.log(`[current price]: ${this.tracking.currentPrice}`);
+    if (this.tracking.previousPrice) {
+      if (this.tracking.currentPrice !== this.tracking.previousPrice) {
+        console.log(`[diff]: (${diff > 0 ? 'GAIN' : 'LOSE'}) ${diff}`);
+        console.log(`[coin count] ${this.tracking.coinCount}`);
+        diff > 0 ? this.tracking.gainCount++ : this.tracking.loseCount++;
+        console.log(
+          `[gain count:] ${this.tracking.gainCount} [loseCount]: ${this.tracking.loseCount}`,
+        );
+      } else {
+        console.log('[No change]');
+      }
+      console.log(
+        `[invest value]: ${
+          this.tracking.coinCount * this.tracking.currentPrice
+        }`,
+      );
+    }
+    this.tracking.predictedPrice = output;
+    this.tracking.previousPrice = this.tracking.currentPrice;
   }
 }
 

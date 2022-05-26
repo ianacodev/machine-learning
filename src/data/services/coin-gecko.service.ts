@@ -2,7 +2,7 @@ import CoinGecko from 'coingecko-api';
 import { Observable, interval, from, catchError, throwError } from 'rxjs';
 import { exhaustMap, pluck, map } from 'rxjs/operators';
 // models
-import { CryptoCurrency } from '../../shared/models/cryptocurrency.model.js';
+import { CryptoCurrency } from '../models/data.model.js';
 // configs
 import { coinGeckoConfig } from '../configs/coin-gecko.config.js';
 import {
@@ -62,7 +62,7 @@ export class CoinGeckoDataService {
    */
   pollCondensedMarketData(
     cryptocurrency: { id: string; symbol: string },
-    intervalSeconds: number = 10,
+    intervalSeconds: number = 15,
   ): Observable<any> {
     const intervalMS = convertSecondsToMilliseconds(
       intervalSeconds || DEFAULT_POLLING_INTERVAL_SECONDS,
@@ -82,7 +82,7 @@ export class CoinGeckoDataService {
     const { current_price, ath, atl, total_volume, high_24h, low_24h } =
       marketData;
     return {
-      current_price: current_price[currency] / DATA_SCALE,
+      current_price: current_price[currency],
       ath: ath[currency],
       atl: atl[currency],
       total_volume: total_volume[currency],
