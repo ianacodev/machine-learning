@@ -1,12 +1,15 @@
 // models
-import {
-  CryptoCurrenciesCoins,
-  CryptoCurrencies,
-} from '../models/data.model.js';
+import { CryptoCurrencyCoins, CryptoCurrencies } from '../models/data.model.js';
 
 export const cryptocurrencies: CryptoCurrencies = {
-  [CryptoCurrenciesCoins.Cardano]: {
-    id: CryptoCurrenciesCoins.Cardano,
+  [CryptoCurrencyCoins.Bitcoin]: {
+    name: CryptoCurrencyCoins.Bitcoin,
+    symbol: 'btc',
+    normalize: 100000,
+  },
+  [CryptoCurrencyCoins.Cardano]: {
+    name: CryptoCurrencyCoins.Cardano,
     symbol: 'ada',
+    normalize: 1,
   },
 };

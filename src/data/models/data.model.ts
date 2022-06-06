@@ -1,25 +1,27 @@
-export interface CondensedMarketData {
-  current_price: number;
-  ath: number;
-  atl: number;
-  total_volume: number;
-  high_24h: number;
-  low_24h: number;
-}
-
 export enum DataPlatforms {
-  CoinGecko = 'CoinGecko',
+  Coinbase = 'Coinbase',
 }
 
-export enum CryptoCurrenciesCoins {
+export enum CryptoCurrencyCoins {
+  Bitcoin = 'bitcoin',
   Cardano = 'cardano',
 }
 
 export interface CryptoCurrency {
-  id: string;
+  name: string;
   symbol: string;
+  normalize: number;
 }
 
 export interface CryptoCurrencies {
   [id: string]: CryptoCurrency;
+}
+
+export interface CryptoPrice {
+  name: string;
+  amount: string;
+}
+
+export interface BaseService {
+  getCryptoPrice: any;
 }

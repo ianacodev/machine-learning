@@ -1,52 +1,51 @@
-// imports
 import * as Brain from 'brain.js';
-import { Observable } from 'rxjs';
-import { map, filter } from 'rxjs/operators';
 import log from 'loglevel';
-// modules
-import { Simulation } from './simulation/simulation.js';
-// services
-import { DataBrokerService } from './data/services/data-broker.service.js';
-import { NormalizeDataService } from './data/services/normalize-data.service.js';
-import { AnalyticsService } from './analytics/analytics.service.js';
+import { Observable, interval } from 'rxjs';
+import { map, filter, take } from 'rxjs/operators';
+// service
+import { NormalizeDataService } from '../data/services/normalize-data.service.js';
+import { AnalyticsService } from '../analytics/analytics.service.js';
 // configs
-import { mainConfig } from './config/main.config.js';
+import { simulationConfig } from './configs/simulation.config.js';
+import { simulationDataMap } from './configs/simulation.data.config.js';
 
-class Main {
+export class Simulation {
   networkData: number[] = [];
-  data$!: Observable<any>;
-  dataService: any;
   network: any;
+  data$!: Observable<any>;
 
   constructor(
     private normalizeDataService: NormalizeDataService = new NormalizeDataService(),
     private analyticsService: AnalyticsService = new AnalyticsService(),
-  ) {
-    log.enableAll();
-    if (mainConfig.simulationStatus) {
-      log.warn('--Simulation Active--');
-      const simulation = new Simulation();
-      simulation.run();
-    } else {
-      log.info('--Init Process--');
-      this.initData();
-      this.startNetworkProcessing();
-    }
+  ) {}
+
+  /**
+   * run
+   * @param trainMaxValue
+   * @param testMinMaxValue
+   * @param forecastCount
+   */
+  run() {
+    log.info('--Init Simulation Process--');
+    this.initData();
+    this.startNetworkProcessing();
   }
 
   /**
    * init data
    */
   initData() {
-    const { dataPlatform, samplingFrequencySeconds, cryptocurrency } =
-      mainConfig;
-    log.info(
-      `>> Initializing Data [sample freq ${samplingFrequencySeconds} (sec)]`,
-    );
-    const dataService = new DataBrokerService(dataPlatform);
-    this.data$ = dataService.pollCryptoPrice(
-      cryptocurrency,
-      samplingFrequencySeconds,
+    log.info(`>> [Simulation] Initializing Data`);
+    const { cryptocurrency } = simulationConfig;
+    const data = simulationDataMap[cryptocurrency.name].map((amount) => ({
+      name: cryptocurrency.name,
+      amount,
+    })) as any;
+    this.data$ = interval(
+      simulationConfig.samplingFrequencySeconds * 1000,
+    ).pipe(
+      map((index) => data[index]),
+      take(data.length),
     );
   }
 
@@ -54,7 +53,7 @@ class Main {
    * start network processing
    */
   startNetworkProcessing() {
-    log.info('>> Initializing Network Process');
+    log.info('>> [Simulation] Initializing Network Process');
     this.runNetworkProcess();
   }
 
@@ -67,9 +66,8 @@ class Main {
       .pipe(
         map((cryptoPrice) => {
           const { name, amount } = cryptoPrice;
-          console.log('test', cryptoPrice);
           log.info(`[current price] ${name} $${amount}`);
-          const { cryptocurrency } = mainConfig;
+          const { cryptocurrency } = simulationConfig;
           const normalizedCurrentPrice =
             this.normalizeDataService.normalizeData(
               amount,
@@ -81,23 +79,26 @@ class Main {
           this.networkData.push(normalizedCurrentPrice);
         }),
         filter(() => {
-          const threshold = this.networkData.length >= mainConfig.dataLength;
+          const threshold =
+            this.networkData.length >= simulationConfig.dataLength;
           let msg;
           if (threshold) {
-            msg = '>> Running network';
+            msg = '>> [Simulation] Running network';
           } else {
-            msg = '>> Consolidate data run';
+            msg = '>> [Simulation] Consolidating data';
           }
-          log.info(`${msg} #${++networkRunCount}`);
+          log.info(`${msg} #${++networkRunCount} `);
           return threshold;
         }),
       )
       .subscribe(() => {
-        const { trainingSettings, hiddenLayers } = mainConfig;
-        this.network = new Brain.recurrent.LSTMTimeStep({ hiddenLayers });
-        log.info('>> training network');
+        const { trainingSettings, hiddenLayers } = simulationConfig;
+        this.network = new Brain.recurrent.LSTMTimeStep({
+          hiddenLayers,
+        });
+        log.info('>> [Simulation] training network');
         this.network.train([this.networkData], trainingSettings);
-        log.info('>> forecasting');
+        log.info('>> [Simulation] forecasting');
         const networkOutputData = this.network.run(this.networkData);
         this.runPostNetworkProcess(networkOutputData);
       });
@@ -109,14 +110,15 @@ class Main {
    */
   runPostNetworkProcess(networkOutputData: number) {
     log.info('>> run post network process');
-    const { dataNormalizeScale } = mainConfig;
+    console.log('chec', this.networkData, networkOutputData);
+    const { cryptocurrency } = simulationConfig;
     const networkDataDenormalized = this.normalizeDataService.denormalizeData<
       number[]
-    >(this.networkData, dataNormalizeScale);
+    >(this.networkData, cryptocurrency.normalize);
     const networkOutputDataDenormalized =
       this.normalizeDataService.denormalizeData<number>(
         networkOutputData,
-        dataNormalizeScale,
+        cryptocurrency.normalize,
       );
     this.analyticsService.analyze(
       networkDataDenormalized,
@@ -126,6 +128,3 @@ class Main {
     this.networkData.shift();
   }
 }
-
-// start
-new Main();
