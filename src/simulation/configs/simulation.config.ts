@@ -6,21 +6,21 @@ import {
 // configs
 import { cryptocurrencies } from '../../data/configs/cryptocurrencies.config.js';
 
-const cryptocurrency = cryptocurrencies[CryptoCurrencyCoins.Bitcoin];
+const cryptocurrency = cryptocurrencies[CryptoCurrencyCoins.Control];
 
 // data length subtract to allow result test values
 export const simulationConfig = {
   cryptocurrency,
   dataPlatform: DataPlatforms.Coinbase,
-  dataLength: 10,
+  dataLength: 15,
   forecastLength: 1,
   simulationStatus: true,
   samplingFrequencySeconds: 1,
-  hiddenLayers: [6],
+  hiddenLayers: [1],
   trainingSettings: {
     log: true,
     logPeriod: 100,
     iterations: 30000,
-    errorThresh: 0.0005,
+    errorThresh: 0.005,
   },
 };

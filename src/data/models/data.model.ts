@@ -3,6 +3,7 @@ export enum DataPlatforms {
 }
 
 export enum CryptoCurrencyCoins {
+  Control = 'control',
   Bitcoin = 'bitcoin',
   Cardano = 'cardano',
 }

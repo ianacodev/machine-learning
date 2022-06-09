@@ -1,6 +1,13 @@
 // models
 import { CryptoCurrencyCoins } from '../../data/models/data.model.js';
 
+// control
+export const simulationControlData = [
+  30000, 31000, 32000, 32000, 34000, 35000, 36000, 37000, 38000, 39000, 40000,
+  41000, 42000, 43000, 44000, 45000, 46000, 47000, 48000, 49000, 50000, 51000,
+  52000, 53000, 54000,
+];
+
 // sampling frequency 30
 export const simulationBitcoinData = [
   31372.53, 31340.34, 31340.34, 31304.1, 31304.1, 31281.7, 31281.7, 31267.2,
@@ -22,6 +29,7 @@ export const simulationCardanoData = [
 
 // map
 export const simulationDataMap: { [key: string]: number[] } = {
+  [CryptoCurrencyCoins.Control]: simulationControlData,
   [CryptoCurrencyCoins.Bitcoin]: simulationBitcoinData,
   [CryptoCurrencyCoins.Cardano]: simulationCardanoData,
 };
